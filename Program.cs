@@ -2,6 +2,8 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace lesson2409
 {
@@ -55,8 +57,97 @@ namespace lesson2409
                 else if (avg_rating < min_threshold)
                     last.Add(stud);
             }
+            Student.WriteToCsv("students.csv", students);
+
+
+            var students1 = Student.ReadCsv("students.csv");
+            foreach (var stud in students1)
+            {
+                Console.WriteLine("----------------");
+                stud.visualize();
+            }
             
+
+            WriteArrToXml(students1, "studs.xml", "");
+            WriteArrToXml(best.ToArray(), "best_studs.xml", "BestStudents");
+            WriteArrToXml(last.ToArray(), "last_studs.xml", "LastStudents");
+            WriteEachToXml(students1, "t");
+
+
+            Console.WriteLine("---x-x-x--STUDENT1--x-x-x-x-");
+            var student1 = ReadStudentXml("t_1.xml");
+            student1.visualize();
+
+            // Console.WriteLine("xxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            // using (var file = new StreamReader("studs.xml"))
+            // {
+            //     var ser = new XmlSerializer(typeof(Student []));
+            //     var studs = (Student [])ser.Deserialize(file);
+            //     studs[1].visualize();
+            // }
+
+            var best_studs = ReadStudentArrayXml("last_studs.xml", "LastStudents");
+            foreach (var stud in best_studs)
+            {
+                Console.WriteLine("XXXXXXXXXXXXOOOOOOOOOOOO");
+                stud.visualize();
+            }
+
+
+            foreach (string file in Directory.GetFiles(".", "*.xml").Where(item => item.EndsWith(".xml")))
+            {
+                Console.WriteLine(file);
+                File.Delete(file);
+            }
+
+
         }
+
+        static Student ReadStudentXml(string f_name)
+        {
+            var file = new StreamReader(f_name);
+            var serializer = new XmlSerializer(typeof(Student));
+            Student stud = (Student)serializer.Deserialize(file);
+            file.Close();
+            return stud;
+        }
+
+        static Student[] ReadStudentArrayXml(string f_name, string arr_name)
+        {
+            var file = new StreamReader(f_name);
+            var serializer = new XmlSerializer(typeof(Student[]), new XmlRootAttribute(arr_name));
+            Student[] students = (Student[])serializer.Deserialize(file);
+            file.Close();
+            return students;
+        }
+
+        static void WriteArrToXml(Student[] arr, string f_name, string arr_name="")
+        {
+            XmlSerializer serializer = new XmlSerializer(arr.GetType());
+            if (arr_name != "")
+            {
+                serializer = new XmlSerializer(arr.GetType(), new XmlRootAttribute(arr_name));
+            }
+            using (TextWriter file = new StreamWriter(f_name))
+            {
+                serializer.Serialize(file, arr);
+            }
+
+        }
+
+        static void WriteEachToXml(Student[] arr, string file_prefix)
+        {
+            for(int i = 0; i < arr.Length; i++)
+            {
+                XmlSerializer serializer = new XmlSerializer(typeof(Student));
+                string f_name = file_prefix + "_" + i.ToString() + ".xml";
+                TextWriter writer = new StreamWriter(f_name);
+                Console.WriteLine(f_name);
+                serializer.Serialize(writer, arr[i]);
+                writer.Close();
+            }
+        }
+
 
         static Student[] CreateStudents(string[] Names, string[] LastNames, string[] Patronimycs, int Count)
         {
@@ -72,19 +163,19 @@ namespace lesson2409
                                         Patronimycs[rnd.Next(0, Patronimycs.Length)]);
                 result[i].Rating = GetRandomRating(5, 2, 5);
 
-                result[i].visualize();
+                // result[i].visualize();
                 Console.WriteLine();
                 
             }
             return result;
         }
-        static double[] GetRandomRating(int num, double MinR, double MaxR)
+        static int[] GetRandomRating(int num, int MinR, int MaxR)
         {
             var rnd = new Random();
-            double[] ratings = new double[num];
+            int[] ratings = new int[num];
             for(int i=0; i<num; i++)
             {
-                ratings[i] = MinR + rnd.NextDouble()*(MaxR - MinR);
+                ratings[i] =  (int)(MinR + rnd.NextDouble()*(MaxR - MinR));
             }
             return ratings;
         }
@@ -92,13 +183,53 @@ namespace lesson2409
 
 
 
-    class Student
+    // [XmlRoot("Student")]
+    public class Student
     {
         public string FirstName;
         public string LastName;
         public string Patronimyc;
 
-        public double[] Rating;
+        public int[] Rating;
+
+        public static void WriteToCsv(string FileName, Student[] students)
+        {
+            using (var file = new StreamWriter(FileName))
+            {
+                file.WriteLine("LastName;FirstName;Patronymic;Ratings");
+                for (var i=0; i < students.Length; i++)
+                {
+                    var ratings = string.Join(";", students[i].Rating);
+                    file.WriteLine("{0};{1};{2};{3}",
+                                   students[i].LastName,
+                                   students[i].FirstName,
+                                   students[i].Patronimyc,
+                                   ratings);
+                }
+            }
+        }
+        public static Student[] ReadCsv(string FileName)
+        {
+            var result = new List<Student>();
+            using (var file = new StreamReader(FileName))
+            {
+                file.ReadLine();
+                while (!file.EndOfStream)
+                {
+                    var line = file.ReadLine();
+                    var values = line.Split(";");
+                    var student = new Student(values[1], values[0], values[2]);
+                    var ratings = new int[values.Length - 3];
+                    for (var i = 0; i < ratings.Length; i++)
+                    {
+                        ratings[i] = int.Parse(values[i + 3]);
+                    }
+                    student.Rating = ratings;
+                    result.Add(student);
+                }
+            }
+            return result.ToArray();
+        }
 
         public double AverageRating
         {
@@ -118,6 +249,12 @@ namespace lesson2409
             FirstName = f_name;
             LastName = last_name;
             Patronimyc = patr;
+        }
+        public Student()
+        {
+            FirstName = "";
+            LastName = "";
+            Patronimyc = "";
         }
         public void visualize()
         {
