@@ -3,12 +3,82 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 
+
+using System.Text;
+
 namespace lesson2409
 {
     class Program
     {
+
+        static bool keepFiles = false;
         static void Main(string[] args)
         {
+
+            TestStudent();
+            TestWC();
+
+        }
+
+        static void TestWC()
+        {
+            Console.WriteLine("\n------\nТест счётчика слов\n------\n");
+            string file_name = "voyna-i-mir-tom-1.txt";
+            Console.WriteLine(file_name);
+            var voyna_words = WordCounter(file_name);
+            WriteWordCountsToCsv("warpeace-words.csv", voyna_words);
+            if (!keepFiles)
+                ClearExt(".csv");
+        }
+
+        static Dictionary<string, int> WordCounter(string file_name)
+        {
+            var file = new FileInfo(file_name);
+            if(!file.Exists)
+            {
+                Console.Write("Файла не существует");
+                return new Dictionary<string, int>();
+            }
+            Console.WriteLine("Размер файла {0}", file.Length);
+            var words_dict = new Dictionary<string, int>();
+            using (var reader = new StreamReader(file_name, Encoding.UTF8))
+            {
+                while (!reader.EndOfStream)
+                {
+                    var line = reader.ReadLine();
+                    if (line.Length == 0) 
+                        continue;
+                    var words = line.Split(' ');
+                    foreach (var word in words)
+                    {
+                        var w = word.Trim().Trim("/,-.?!][)(;:1234567890'".ToCharArray()).ToLower();
+                        if (w == null || w.Length == 0)
+                            continue;
+                        if (!words_dict.ContainsKey(w))
+                            words_dict.Add(w,0);
+                        words_dict[w]++;
+                    }
+                }
+            }
+            Console.WriteLine("Количество слов: {0}", words_dict.Count);
+            return words_dict;
+        }
+
+        public static void WriteWordCountsToCsv(string FileName, Dictionary<string, int> dict_to_write)
+        {
+            using (var file = new StreamWriter(FileName))
+            {
+                file.WriteLine("Word;Count");
+                foreach (KeyValuePair<string,int> item in dict_to_write.OrderByDescending(key=> key.Value))
+                { 
+                     file.WriteLine("{0};{1}", item.Key, item.Value);
+                }
+            }
+        }
+
+        static void TestStudent()
+        {
+            Console.WriteLine("\n------\nТест класса Student\n------\n");
             // формирование набора имен, фамилий и отчеств из файла
             var first_names = new List<string>();
             var last_names = new List<string>();
@@ -63,16 +133,18 @@ namespace lesson2409
             Console.WriteLine("-------------------------------");
             SplitIntoGroups(students, 10);
             // Удаление Xml и csv
-            ClearExt();
-            ClearExt(".csv");
-
+            if (!keepFiles)
+            {
+                ClearExt();
+                ClearExt(".csv");
+            }
         }
 
         static void ClearExt(string extension=".xml")
         {
             foreach (string file in Directory.GetFiles(".", "*" + extension).Where(item => item.EndsWith(extension)))
             {
-                Console.WriteLine(file);
+                Console.WriteLine(file+" deleted");
                 File.Delete(file);
             }
         }
